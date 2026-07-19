@@ -435,21 +435,40 @@
 
   </main>
 
-  <!-- Attiva l'effetto "lampo runico" sul link di tracciamento quando viene cliccato -->
+  <!-- Attiva l'effetto "lampo runico" sul link di tracciamento e apre la pagina
+       di tracciamento solo DOPO che l'animazione è terminata -->
   <script>
     (function () {
       var link = document.getElementById('link-tracciamento');
       if (!link) return;
-      link.addEventListener('click', function () {
+
+      var url = link.href;
+      var DURATA_ANIMAZIONE = 650; // ms, poco più della durata dell'animazione CSS (0.6s)
+      var preferisceMenoMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      link.addEventListener('click', function (event) {
+        // il click normale (tasto sinistro, senza tasti modificatori) viene intercettato
+        // per far vedere prima l'effetto; click centrale/con Ctrl aprono subito come da comportamento nativo
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+
+        event.preventDefault();
+
+        if (preferisceMenoMovimento) {
+          window.open(url, '_blank', 'noopener,noreferrer');
+          return;
+        }
+
         link.classList.remove('link-runico--attivato');
         // forza il reflow così l'animazione riparte anche a click ravvicinati
         void link.offsetWidth;
         link.classList.add('link-runico--attivato');
-      });
-      link.addEventListener('animationend', function (event) {
-        if (event.animationName === 'impulso-clic') {
+
+        window.setTimeout(function () {
           link.classList.remove('link-runico--attivato');
-        }
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }, DURATA_ANIMAZIONE);
       });
     })();
   </script>
