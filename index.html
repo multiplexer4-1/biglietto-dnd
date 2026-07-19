@@ -232,6 +232,10 @@
     position: relative;
     display: inline-flex;
     align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    tap-highlight-color: transparent;
+    touch-action: manipulation;
+    outline: none;
     font-family: 'Noto Sans Runic', cursive;
     font-size: clamp(1.5rem, 7vw, 2.1rem);
     letter-spacing: 3px;
@@ -251,6 +255,11 @@
     color: #5a1512;
     transform: translateY(-2px);
     border-color: rgba(138, 31, 31, 0.8);
+  }
+
+  .link-runico:focus-visible {
+    outline: 2px solid rgba(138, 31, 31, 0.6);
+    outline-offset: 4px;
   }
 
   /* Effetto "attivazione runica" al click: lampo che si espande dal
