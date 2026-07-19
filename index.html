@@ -303,13 +303,27 @@
     .pergamena::before {
       border-radius: 50px 12px 50px 12px / 12px 50px 12px 50px;
     }
+
+    /* Su iPhone i testi piccoli sono difficili da leggere: si aumentano
+       le dimensioni minime a circa 16-17px (soglia di leggibilità consigliata) */
+    .sottotitolo {
+      font-size: 1rem;
+      letter-spacing: 2px;
+    }
     .lettera {
-      font-size: 1.05rem;
+      font-size: 1.15rem;
+      line-height: 1.85;
+    }
+    .etichetta-tracking {
+      font-size: 1rem;
     }
     .bottone-tracking {
-      font-size: 0.92rem;
-      padding: 14px 22px;
+      font-size: 1.05rem;
+      padding: 16px 22px;
       text-align: center;
+    }
+    .nota-tracking {
+      font-size: 0.95rem;
     }
   }
 </style>
