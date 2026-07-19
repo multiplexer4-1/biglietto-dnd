@@ -229,6 +229,7 @@
   /* Link di tracciamento scritto direttamente in vere rune Elder Futhark
      (alfabeto Unicode Runic, U+16A0-16F0), effetto "runa incisa che brilla" */
   .link-runico {
+    position: relative;
     display: inline-flex;
     align-items: center;
     font-family: 'Noto Sans Runic', cursive;
@@ -252,6 +253,59 @@
     border-color: rgba(138, 31, 31, 0.8);
   }
 
+  /* Effetto "attivazione runica" al click: lampo che si espande dal
+     centro del link + un breve impulso di luce sul testo */
+  .bagliore-clic {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 24px;
+    height: 24px;
+    margin: -12px 0 0 -12px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 205, 130, 0.95) 0%, rgba(255, 140, 60, 0.6) 40%, rgba(200, 50, 20, 0) 72%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .link-runico--attivato {
+    animation: bagliore-runico 2.6s ease-in-out infinite, impulso-clic 0.6s ease-out;
+  }
+
+  .link-runico--attivato .bagliore-clic {
+    animation: esplosione-runica 0.6s ease-out;
+  }
+
+  @keyframes impulso-clic {
+    0% {
+      transform: scale(1);
+    }
+    35% {
+      transform: scale(1.18);
+      text-shadow:
+        0 0 18px rgba(255, 195, 120, 1),
+        0 0 42px rgba(230, 100, 40, 0.85);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes esplosione-runica {
+    0% {
+      transform: scale(0.3);
+      opacity: 0.9;
+    }
+    60% {
+      opacity: 0.45;
+    }
+    100% {
+      transform: scale(11);
+      opacity: 0;
+    }
+  }
+
   @keyframes bagliore-runico {
     0%, 100% {
       text-shadow:
@@ -266,7 +320,11 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .link-runico {
+    .link-runico,
+    .link-runico--attivato {
+      animation: none;
+    }
+    .link-runico--attivato .bagliore-clic {
       animation: none;
     }
   }
@@ -368,7 +426,7 @@
         reale per accessibilità e per chi passa il mouse sopra.
         Per cambiare spedizione, sostituisci il numero dopo "tracking-id=".
       -->
-      <a href="https://www.dhl.com/it-it/home/tracking.html?tracking-id=3605831445" class="link-runico" target="_blank" rel="noopener noreferrer" aria-label="Localizza Oggetto" title="Localizza Oggetto">ᛚᛟᚴᚨᛚᛁᛉᛉᚨ ᛫ ᛟᚷᚷᛖᛏᛏᛟ</a>
+      <a href="https://www.dhl.com/it-it/home/tracking.html?tracking-id=3605831445" class="link-runico" id="link-tracciamento" target="_blank" rel="noopener noreferrer" aria-label="Localizza Oggetto" title="Localizza Oggetto"><span class="bagliore-clic" aria-hidden="true"></span>ᛚᛟᚴᚨᛚᛁᛉᛉᚨ ᛫ ᛟᚷᚷᛖᛏᛏᛟ</a>
 
       <p class="nota-tracking">Le rune risponderanno solo al tuo tocco</p>
     </section>
@@ -376,6 +434,25 @@
     <p class="piede-decorativo">⚜</p>
 
   </main>
+
+  <!-- Attiva l'effetto "lampo runico" sul link di tracciamento quando viene cliccato -->
+  <script>
+    (function () {
+      var link = document.getElementById('link-tracciamento');
+      if (!link) return;
+      link.addEventListener('click', function () {
+        link.classList.remove('link-runico--attivato');
+        // forza il reflow così l'animazione riparte anche a click ravvicinati
+        void link.offsetWidth;
+        link.classList.add('link-runico--attivato');
+      });
+      link.addEventListener('animationend', function (event) {
+        if (event.animationName === 'impulso-clic') {
+          link.classList.remove('link-runico--attivato');
+        }
+      });
+    })();
+  </script>
 
 </body>
 </html>
