@@ -86,24 +86,10 @@
     /* bordi leggermente irregolari, effetto "carta strappata" */
     border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 
-    /* ===== Variabili per il tilt 3D leggero (aggiornate dallo script in fondo) =====
-       Un solo elemento animato, aggiornato con throttling via requestAnimationFrame:
-       è la parte più economica di tutta l'esperienza, per questo la teniamo. */
-    --tilt-x: 0deg;
-    --tilt-y: 0deg;
-    --shadow-x: 0px;
-    --shadow-y: 25px;
-    --sheen-x: 50%;
-    --sheen-y: 30%;
-    --sheen-intensita: 0;
-
-    transform: perspective(1400px) rotateX(var(--tilt-y)) rotateY(var(--tilt-x));
-    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease-out;
-
     /* ombre multiple, toni seppia/bruciato, per dare profondità e texture materica */
     box-shadow:
       0 0 0 1px rgba(139, 101, 55, 0.35),
-      var(--shadow-x) var(--shadow-y) 65px rgba(58, 28, 12, 0.6),
+      0 25px 65px rgba(58, 28, 12, 0.6),
       0 8px 20px rgba(40, 18, 8, 0.5),
       inset 0 0 60px rgba(139, 101, 55, 0.35),
       inset 0 0 120px rgba(80, 50, 20, 0.25);
@@ -117,31 +103,6 @@
     border: 1px solid rgba(139, 101, 55, 0.35);
     border-radius: 235px 15px 205px 15px / 15px 205px 15px 235px;
     pointer-events: none;
-  }
-
-  /* Riflesso di luce che segue il tilt: un solo elemento, opacity/transizione
-     economiche, nessun filtro pesante */
-  .pergamena::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: radial-gradient(circle at var(--sheen-x) var(--sheen-y), rgba(255, 250, 230, 0.9), transparent 45%);
-    opacity: var(--sheen-intensita);
-    mix-blend-mode: soft-light;
-    transition: opacity 0.4s ease;
-    pointer-events: none;
-    z-index: 5;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .pergamena {
-      transform: none !important;
-      transition: none;
-    }
-    .pergamena::after {
-      display: none;
-    }
   }
 
   /* ===========================================================
@@ -561,99 +522,6 @@
     // niente "shadowBlur" nel Canvas, poche decine di elementi animati al
     // massimo in contemporanea (mai centinaia).
     var PREFERISCE_MENO_MOVIMENTO = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    /* =========================================================
-       MODULO 1: TILT 3D DELLA PERGAMENA (un solo elemento animato)
-       Su desktop segue il mouse, su mobile il giroscopio. Il CSS
-       (con "transition") interpola i valori: qui calcoliamo solo i
-       target, throttlati con requestAnimationFrame. Il rettangolo
-       della pergamena si misura una volta sola (non ad ogni evento)
-       per evitare ricalcoli di layout continui.
-       ========================================================= */
-    (function inizializzaTilt3D() {
-      var pergamena = document.querySelector('.pergamena');
-      if (!pergamena || PREFERISCE_MENO_MOVIMENTO) return;
-
-      var TILT_MASSIMO = 7; // gradi
-      var OMBRA_MASSIMA = 22; // px
-
-      function clamp(valore, min, max) {
-        return Math.max(min, Math.min(max, valore));
-      }
-
-      function applica(dx, dy) {
-        var tiltX = clamp(dx, -1, 1) * TILT_MASSIMO;
-        var tiltY = clamp(-dy, -1, 1) * TILT_MASSIMO;
-        var scala = OMBRA_MASSIMA / TILT_MASSIMO;
-
-        pergamena.style.setProperty('--tilt-x', tiltX.toFixed(2) + 'deg');
-        pergamena.style.setProperty('--tilt-y', tiltY.toFixed(2) + 'deg');
-        pergamena.style.setProperty('--shadow-x', (-tiltX * scala).toFixed(1) + 'px');
-        pergamena.style.setProperty('--shadow-y', (25 + tiltY * scala).toFixed(1) + 'px');
-        pergamena.style.setProperty('--sheen-x', (50 + dx * 45).toFixed(1) + '%');
-        pergamena.style.setProperty('--sheen-y', (35 + dy * 40).toFixed(1) + '%');
-        pergamena.style.setProperty('--sheen-intensita', '1');
-      }
-
-      function ripristina() {
-        pergamena.style.setProperty('--tilt-x', '0deg');
-        pergamena.style.setProperty('--tilt-y', '0deg');
-        pergamena.style.setProperty('--shadow-x', '0px');
-        pergamena.style.setProperty('--shadow-y', '25px');
-        pergamena.style.setProperty('--sheen-intensita', '0');
-      }
-
-      var haPuntatorePreciso = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-
-      if (haPuntatorePreciso) {
-        var aggiornamentoProgrammato = false;
-        var ultimoEvento = null;
-        var rettangolo = pergamena.getBoundingClientRect();
-
-        function aggiornaRettangolo() {
-          rettangolo = pergamena.getBoundingClientRect();
-        }
-        window.addEventListener('resize', aggiornaRettangolo);
-        window.addEventListener('scroll', aggiornaRettangolo, { passive: true });
-
-        document.addEventListener('mousemove', function (evento) {
-          ultimoEvento = evento;
-          if (aggiornamentoProgrammato) return;
-          aggiornamentoProgrammato = true;
-          requestAnimationFrame(function () {
-            var dx = ((ultimoEvento.clientX - rettangolo.left) / rettangolo.width - 0.5) * 2;
-            var dy = ((ultimoEvento.clientY - rettangolo.top) / rettangolo.height - 0.5) * 2;
-            applica(dx, dy);
-            aggiornamentoProgrammato = false;
-          });
-        });
-
-        document.addEventListener('mouseleave', ripristina);
-      } else if (window.DeviceOrientationEvent) {
-        function gestisciOrientamento(evento) {
-          if (evento.beta === null || evento.gamma === null) return;
-          var dx = clamp(evento.gamma / 30, -1, 1);
-          var dy = clamp((evento.beta - 45) / 30, -1, 1); // 45°: inclinazione tipica in mano
-          applica(dx, dy);
-        }
-
-        // iOS 13+ richiede il permesso esplicito, concedibile solo con un gesto
-        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-          document.addEventListener('touchend', function richiediPermesso() {
-            DeviceOrientationEvent.requestPermission()
-              .then(function (stato) {
-                if (stato === 'granted') {
-                  window.addEventListener('deviceorientation', gestisciOrientamento);
-                }
-              })
-              .catch(function () { /* permesso negato: la pergamena resta ferma */ });
-            document.removeEventListener('touchend', richiediPermesso);
-          }, { once: true });
-        } else {
-          window.addEventListener('deviceorientation', gestisciOrientamento);
-        }
-      }
-    })();
 
     /* =========================================================
        MODULO 2: EFFETTO "INCHIOSTRO" (leggero) - scrittura PAROLA
