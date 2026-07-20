@@ -6,10 +6,16 @@
 <title>La Cerca del Regalo Perduto</title>
 
 <!-- Font di Google: Cinzel per i titoli epici, IM Fell English per la lettera (medievale ma leggibile),
-     Noto Sans Runic per le vere rune Elder Futhark del link di tracciamento -->
+     Noto Sans Runic per le vere rune Elder Futhark del link di tracciamento.
+     Caricamento NON bloccante (media="print" + onload): il foglio di stile dei
+     font viene scaricato ma non blocca il primo rendering della pagina, che parte
+     subito con i font di sistema e passa ai font definitivi appena pronti
+     (PageSpeed Insights segnalava ~2.7s di rendering bloccato per questa risorsa). -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700&family=IM+Fell+English:ital@0;1&family=Noto+Sans+Runic&display=swap" rel="stylesheet">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700&family=IM+Fell+English:ital@0;1&family=Noto+Sans+Runic&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700&family=IM+Fell+English:ital@0;1&family=Noto+Sans+Runic&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700&family=IM+Fell+English:ital@0;1&family=Noto+Sans+Runic&display=swap"></noscript>
 
 <style>
   /* ===========================================================
@@ -230,7 +236,14 @@
     text-align: left;
   }
 
-  .lettera p:not(.firma)::first-letter {
+  /* Capolettera: stile condiviso da due meccanismi.
+     - ::first-letter copre il caso SENZA JavaScript (o "riduci movimento"),
+       quando il testo resta quello originale e non viene toccato.
+     - .capolettera è lo <span> creato da JavaScript quando il testo VIENE
+       animato: in quel caso la prima lettera entra a far parte della stessa
+       sequenza di comparsa delle parole, invece di apparire già scritta. */
+  .lettera p:not(.firma)::first-letter,
+  .capolettera {
     font-family: 'Cinzel Decorative', cursive;
     font-size: 2.7rem;
     color: #5a1e12;
@@ -345,24 +358,19 @@
       0 0 6px rgba(255, 140, 60, 0.5),
       0 0 16px rgba(200, 50, 20, 0.3);
     opacity: 0;
-    clip-path: inset(0 100% 0 0);
     animation:
-      rune-appaiono 0.9s ease-out 0.3s forwards,
-      bagliore-runico 2.6s ease-in-out 1.3s infinite;
+      rune-appaiono 0.35s ease-out 0.1s forwards,
+      bagliore-runico 2.6s ease-in-out 0.45s infinite;
     transition: opacity 0.4s ease, transform 0.4s ease;
   }
 
+  /* Versione leggera: semplice dissolvenza, niente più clip-path */
   @keyframes rune-appaiono {
     0% {
       opacity: 0;
-      clip-path: inset(0 100% 0 0);
-    }
-    20% {
-      opacity: 1;
     }
     100% {
       opacity: 1;
-      clip-path: inset(0 0% 0 0);
     }
   }
 
@@ -386,7 +394,6 @@
     .testo-runico {
       animation: none !important;
       opacity: 1 !important;
-      clip-path: none !important;
     }
   }
 
@@ -651,11 +658,11 @@
     /* =========================================================
        MODULO 2: EFFETTO "INCHIOSTRO" (leggero) - scrittura PAROLA
        per parola (non lettera per lettera): un ~140 caratteri di
-       paragrafo diventano ~24 <span>, non ~140. Le rune restano
-       carattere per carattere (sono solo una ventina) per un vero
-       effetto "tratto disegnato", e partono presto e in PARALLELO
-       alla lettera, non incatenate dopo: altrimenti su testi lunghi
-       restano invisibili per secondi, sembrando sparite.
+       paragrafo diventano ~24 <span>, non ~140. Il capolettera fa
+       parte della stessa sequenza (appare per primo), così tutto il
+       testo compare in un unico flusso continuo, da sinistra a destra
+       e dall'alto in basso. Le rune del link hanno un'animazione
+       separata e indipendente, definita solo in CSS (vedi più sopra).
        ========================================================= */
     (function inizializzaScritturaInchiostro() {
       if (PREFERISCE_MENO_MOVIMENTO) return; // il testo resta semplicemente visibile da subito
@@ -670,8 +677,10 @@
         return span;
       }
 
-      // Anima un paragrafo per parole, preservando il capolettera (::first-letter,
-      // che deve restare un vero nodo di testo, non finire dentro uno span)
+      // Anima un paragrafo per parole. Il capolettera (prima lettera) entra
+      // nella STESSA sequenza, per prima, invece di apparire già scritto:
+      // così tutto il testo compare in un unico flusso continuo, da sinistra
+      // a destra e dall'alto in basso, capolettera incluso (vedi CSS .capolettera).
       function animaParagrafo(paragrafo, ritardoIniziale, conCapolettera) {
         var testoCompleto = paragrafo.textContent.trim().replace(/\s+/g, ' ');
         var parole = testoCompleto.split(' ');
@@ -682,11 +691,18 @@
 
         if (conCapolettera) {
           var primaParola = parole[0];
-          paragrafo.appendChild(document.createTextNode(primaParola.charAt(0)));
+
+          var spanCapolettera = document.createElement('span');
+          spanCapolettera.className = 'capolettera parola-inchiostro';
+          spanCapolettera.textContent = primaParola.charAt(0);
+          spanCapolettera.style.animationDelay = t + 'ms';
+          paragrafo.appendChild(spanCapolettera);
+          t += PASSO_PAROLA;
+
           if (primaParola.length > 1) {
             paragrafo.appendChild(creaSpanParola(primaParola.slice(1), t));
+            t += PASSO_PAROLA;
           }
-          t += PASSO_PAROLA;
           indicePartenza = 1;
         }
 
@@ -726,8 +742,7 @@
       var testoRunico = document.getElementById('testo-runico');
       if (!testoRunico) return;
       testoRunico.style.opacity = '1';
-      testoRunico.style.clipPath = 'none';
-    }, 2500);
+    }, 2000);
 
     /* =========================================================
        MODULO 3: PARTICELLE ARCANE (Canvas 2D, versione leggera)
