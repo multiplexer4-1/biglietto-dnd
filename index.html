@@ -331,6 +331,11 @@
     outline-offset: 4px;
   }
 
+  /* Il testo runico è VISIBILE FIN DA SUBITO (nessuna regola qui lo nasconde
+     di default). L'effetto "tratto disegnato" è un unico clip-path che si
+     apre su tutto lo span (non più uno per carattere): un solo elemento,
+     un solo timer, molto più robusto e con meno cose che possono andare
+     storte (niente più attese a catena, niente più rune "sparite"). */
   .testo-runico {
     display: inline-block;
     font-family: 'Noto Sans Runic', cursive;
@@ -339,8 +344,26 @@
     text-shadow:
       0 0 6px rgba(255, 140, 60, 0.5),
       0 0 16px rgba(200, 50, 20, 0.3);
-    animation: bagliore-runico 2.6s ease-in-out infinite;
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    animation:
+      rune-appaiono 0.9s ease-out 0.3s forwards,
+      bagliore-runico 2.6s ease-in-out 1.3s infinite;
     transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  @keyframes rune-appaiono {
+    0% {
+      opacity: 0;
+      clip-path: inset(0 100% 0 0);
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      clip-path: inset(0 0% 0 0);
+    }
   }
 
   @keyframes bagliore-runico {
@@ -356,46 +379,14 @@
     }
   }
 
-  /* ===========================================================
-     EFFETTO "TRATTO RUNICO": al caricamento, ogni runa viene
-     "disegnata" da sinistra a destra (clip-path che si apre),
-     invece di apparire già scritta. Poche rune (~18 caratteri):
-     costo trascurabile anche con l'animazione per carattere.
-     =========================================================== */
-  .runa-tratto {
-    display: inline-block;
-    opacity: 0;
-    clip-path: inset(0 100% 0 0);
-    animation: tratto-runico 0.45s ease-out forwards;
-  }
-
-  @keyframes tratto-runico {
-    0% {
-      opacity: 0;
-      clip-path: inset(0 100% 0 0);
-    }
-    12% {
-      opacity: 1;
-    }
-    65% {
-      clip-path: inset(0 0% 0 0);
-      text-shadow:
-        0 0 16px rgba(255, 215, 150, 1),
-        0 0 34px rgba(255, 150, 70, 0.85);
-    }
-    100% {
-      clip-path: inset(0 0% 0 0);
-      text-shadow:
-        0 0 6px rgba(255, 140, 60, 0.5),
-        0 0 16px rgba(200, 50, 20, 0.3);
-    }
-  }
-
+  /* Rete di sicurezza: qualunque cosa succeda (media query non supportata,
+     browser insolito, animazione che non parte), le rune devono comunque
+     restare leggibili fin da subito per chi preferisce meno movimento */
   @media (prefers-reduced-motion: reduce) {
-    .runa-tratto {
-      animation: none;
-      opacity: 1;
-      clip-path: none;
+    .testo-runico {
+      animation: none !important;
+      opacity: 1 !important;
+      clip-path: none !important;
     }
   }
 
@@ -446,7 +437,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .testo-runico,
     .link-runico--attivato .testo-runico {
       animation: none;
     }
@@ -671,7 +661,6 @@
       if (PREFERISCE_MENO_MOVIMENTO) return; // il testo resta semplicemente visibile da subito
 
       var PASSO_PAROLA = 55; // ms tra una parola e la successiva
-      var PASSO_RUNA = 35; // ms tra una runa e la successiva
 
       function creaSpanParola(testo, ritardo) {
         var span = document.createElement('span');
@@ -710,28 +699,8 @@
         return t;
       }
 
-      // Anima le rune con l'effetto "tratto disegnato" (vedi CSS .runa-tratto)
-      function animaRune(elemento, ritardoIniziale) {
-        var testoCompleto = elemento.textContent;
-        elemento.textContent = '';
-        var t = ritardoIniziale;
-
-        for (var i = 0; i < testoCompleto.length; i++) {
-          var carattere = testoCompleto[i];
-          var span = document.createElement('span');
-          span.className = carattere === ' ' ? '' : 'runa-tratto';
-          span.textContent = carattere;
-          if (carattere !== ' ') {
-            span.style.animationDelay = t + 'ms';
-          }
-          elemento.appendChild(span);
-          t += PASSO_RUNA;
-        }
-      }
-
       var paragrafi = document.querySelectorAll('.lettera p:not(.firma)');
       var firma = document.querySelector('.lettera p.firma');
-      var testoRunico = document.getElementById('testo-runico');
 
       var t = 150; // piccola pausa iniziale, come se la pergamena venisse aperta
       paragrafi.forEach(function (paragrafo) {
@@ -741,10 +710,24 @@
         animaParagrafo(firma, t, false);
       }
 
-      if (testoRunico) {
-        animaRune(testoRunico, 400); // in parallelo, non incatenata dopo la lettera
-      }
+      // Le rune NON vengono più toccate da JavaScript: la loro comparsa
+      // (vedi CSS .testo-runico / @keyframes rune-appaiono) è gestita
+      // interamente in CSS, così non dipende in alcun modo dai tempi
+      // della lettera né da eventuali errori altrove nello script.
     })();
+
+    /* =========================================================
+       RETE DI SICUREZZA: qualunque cosa succeda con l'animazione CSS
+       delle rune (browser insolito, glitch, timing imprevisto), dopo
+       pochi secondi le rune vengono comunque forzate visibili. Non fa
+       mai male: se sono già visibili, questo non cambia nulla.
+       ========================================================= */
+    window.setTimeout(function () {
+      var testoRunico = document.getElementById('testo-runico');
+      if (!testoRunico) return;
+      testoRunico.style.opacity = '1';
+      testoRunico.style.clipPath = 'none';
+    }, 2500);
 
     /* =========================================================
        MODULO 3: PARTICELLE ARCANE (Canvas 2D, versione leggera)
