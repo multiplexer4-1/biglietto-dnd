@@ -262,19 +262,20 @@
      da subito (nessuna regola qui nasconde il testo originale).
      =========================================================== */
   .lettera-inchiostro {
+    display: inline-block;
     opacity: 0;
-    filter: blur(3px);
-    animation: inchiostro-appare 0.5s ease-out forwards;
+    transform: translateY(3px);
+    animation: inchiostro-appare 0.25s ease-out forwards;
   }
 
   @keyframes inchiostro-appare {
     0% {
       opacity: 0;
-      filter: blur(3px);
+      transform: translateY(3px);
     }
     100% {
       opacity: 1;
-      filter: blur(0);
+      transform: translateY(0);
     }
   }
 
@@ -282,7 +283,7 @@
     .lettera-inchiostro {
       animation: none;
       opacity: 1;
-      filter: none;
+      transform: none;
     }
   }
 
@@ -306,7 +307,10 @@
   }
 
   /* Link di tracciamento scritto direttamente in vere rune Elder Futhark
-     (alfabeto Unicode Runic, U+16A0-16F0), effetto "runa incisa che brilla" */
+     (alfabeto Unicode Runic, U+16A0-16F0), effetto "runa incisa che brilla".
+     IMPORTANTE: il bagliore/pulsazione vive SOLO su .testo-runico (lo span
+     interno), non su .link-runico (l'elemento <a> con il bordo sotto):
+     così il bordino non si "scala" insieme al testo durante gli effetti. */
   .link-runico {
     position: relative;
     display: inline-flex;
@@ -315,18 +319,11 @@
     tap-highlight-color: transparent;
     touch-action: manipulation;
     outline: none;
-    font-family: 'Noto Sans Runic', cursive;
-    font-size: clamp(1.5rem, 7vw, 2.1rem);
-    letter-spacing: 3px;
     color: #8a1f1f;
     text-decoration: none;
     padding: 8px 6px;
     border-bottom: 1px solid rgba(138, 31, 31, 0.4);
-    text-shadow:
-      0 0 6px rgba(255, 140, 60, 0.5),
-      0 0 16px rgba(200, 50, 20, 0.3);
-    animation: bagliore-runico 2.6s ease-in-out infinite;
-    transition: color 0.2s ease, transform 0.4s ease, border-color 0.2s ease, opacity 0.4s ease;
+    transition: color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
   }
 
   .link-runico:hover,
@@ -339,6 +336,18 @@
   .link-runico:focus-visible {
     outline: 2px solid rgba(138, 31, 31, 0.6);
     outline-offset: 4px;
+  }
+
+  .testo-runico {
+    display: inline-block;
+    font-family: 'Noto Sans Runic', cursive;
+    font-size: clamp(1.5rem, 7vw, 2.1rem);
+    letter-spacing: 3px;
+    text-shadow:
+      0 0 6px rgba(255, 140, 60, 0.5),
+      0 0 16px rgba(200, 50, 20, 0.3);
+    animation: bagliore-runico 2.6s ease-in-out infinite;
+    transition: opacity 0.4s ease, transform 0.4s ease;
   }
 
   @keyframes bagliore-runico {
@@ -404,7 +413,7 @@
      (vedi script in fondo) esplode una pioggia di scintille dorate
      disegnata su <canvas>.
      =========================================================== */
-  .link-runico--attivato {
+  .link-runico--attivato .testo-runico {
     animation: bagliore-runico 2.6s ease-in-out infinite, carica-arcana 1.5s ease-in-out forwards;
   }
 
@@ -446,8 +455,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .link-runico,
-    .link-runico--attivato {
+    .testo-runico,
+    .link-runico--attivato .testo-runico {
       animation: none;
     }
   }
@@ -501,7 +510,7 @@
       font-size: 0.95rem;
       max-width: 260px;
     }
-    .link-runico {
+    .testo-runico {
       letter-spacing: 2px;
     }
     .nota-tracking {
@@ -608,16 +617,26 @@
       var haPuntatorePreciso = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
       if (haPuntatorePreciso) {
-        // --- Desktop: il mouse guida il tilt, con throttling via requestAnimationFrame ---
+        // --- Desktop: il mouse guida il tilt, con throttling via requestAnimationFrame.
+        // Il rettangolo della pergamena viene misurato una sola volta (e ricalcolato
+        // solo su resize/scroll) invece che ad ogni movimento del mouse: chiamare
+        // getBoundingClientRect() in continuazione forza un ricalcolo del layout ad
+        // ogni frame, che è proprio una delle cause principali di rallentamento. ---
         var aggiornamentoProgrammato = false;
         var ultimoEvento = null;
+        var rettangolo = pergamena.getBoundingClientRect();
+
+        function aggiornaRettangolo() {
+          rettangolo = pergamena.getBoundingClientRect();
+        }
+        window.addEventListener('resize', aggiornaRettangolo);
+        window.addEventListener('scroll', aggiornaRettangolo, { passive: true });
 
         document.addEventListener('mousemove', function (evento) {
           ultimoEvento = evento;
           if (aggiornamentoProgrammato) return;
           aggiornamentoProgrammato = true;
           requestAnimationFrame(function () {
-            var rettangolo = pergamena.getBoundingClientRect();
             var dx = ((ultimoEvento.clientX - rettangolo.left) / rettangolo.width - 0.5) * 2;
             var dy = ((ultimoEvento.clientY - rettangolo.top) / rettangolo.height - 0.5) * 2;
             applica(dx, dy);
@@ -665,8 +684,8 @@
     (function inizializzaScritturaInchiostro() {
       if (PREFERISCE_MENO_MOVIMENTO) return; // il testo resta semplicemente visibile da subito
 
-      var PASSO_LETTERA = 13; // ms medi tra un carattere e il successivo, corpo della lettera
-      var PASSO_RUNA = 65; // ms tra una runa e la successiva (più lento: sembra "tracciata")
+      var PASSO_LETTERA = 5; // ms medi tra un carattere e il successivo, corpo della lettera
+      var PASSO_RUNA = 35; // ms tra una runa e la successiva (più lento: sembra "tracciata")
 
       // Anima un paragrafo normale, preservando il capolettera (::first-letter)
       // che deve restare testo "vero" e non finire dentro uno <span>
@@ -727,17 +746,20 @@
       var firma = document.querySelector('.lettera p.firma');
       var testoRunico = document.getElementById('testo-runico');
 
-      var t = 250; // piccola pausa iniziale, come se la pergamena venisse aperta
+      var t = 150; // piccola pausa iniziale, come se la pergamena venisse aperta
       paragrafi.forEach(function (paragrafo) {
-        t = animaParagrafo(paragrafo, t, true) + 220; // pausa tra un paragrafo e l'altro
+        t = animaParagrafo(paragrafo, t, true) + 120; // pausa tra un paragrafo e l'altro
       });
 
       if (firma) {
-        t = animaParagrafo(firma, t, false) + 400; // pausa più lunga prima della firma
+        animaParagrafo(firma, t, false);
       }
 
+      // Le rune partono presto e in parallelo alla lettera (non incatenate dopo
+      // la firma): altrimenti, su testi lunghi, restano invisibili per diversi
+      // secondi prima del loro turno, dando l'impressione che siano sparite.
       if (testoRunico) {
-        animaRune(testoRunico, t + 300);
+        animaRune(testoRunico, 400);
       }
     })();
 
@@ -791,6 +813,12 @@
       function ciclo() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // "lighter" fa sì che i cerchi sovrapposti si sommino come luce
+        // vera, dando un effetto bagliore SENZA il costo di shadowBlur
+        // (che ridisegna una sfocatura reale ad ogni fotogramma ed è
+        // una delle cause più comuni di rallentamento con il Canvas)
+        ctx.globalCompositeOperation = 'lighter';
+
         for (var i = particelle.length - 1; i >= 0; i--) {
           var p = particelle[i];
           p.x += p.vx;
@@ -804,15 +832,25 @@
             continue;
           }
 
-          ctx.beginPath();
-          ctx.globalAlpha = Math.max(p.vita, 0);
+          var alpha = Math.max(p.vita, 0);
+          var raggio = p.raggio * p.vita;
+
+          // alone tenue (più grande, più trasparente) + nucleo pieno:
+          // due semplici cerchi pieni, nessun gradiente/sfocatura da calcolare
+          ctx.globalAlpha = alpha * 0.35;
           ctx.fillStyle = 'rgba(' + p.colore + ',1)';
-          ctx.shadowColor = 'rgba(' + p.colore + ',0.9)';
-          ctx.shadowBlur = 8;
-          ctx.arc(p.x, p.y, p.raggio * p.vita, 0, Math.PI * 2);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, raggio * 2.2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, raggio, 0, Math.PI * 2);
           ctx.fill();
         }
+
         ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
 
         if (particelle.length > 0) {
           requestAnimationFrame(ciclo);
@@ -823,7 +861,7 @@
 
       // Restituisce la funzione da chiamare per far esplodere le particelle in (x, y)
       return function esplodi(x, y) {
-        for (var i = 0; i < 55; i++) {
+        for (var i = 0; i < 34; i++) {
           particelle.push(creaParticella(x, y));
         }
         if (!animazioneAttiva) {
